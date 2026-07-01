@@ -96,17 +96,24 @@ Este rango debe coincidir en TRES lugares:
 
 ### 3.2 — Aplicar las reglas del firewall + automatización
 
+El script viene DENTRO de la imagen: no descargas nada. Desde la carpeta del
+compose, ejecuta:
+
 ```bash
-sudo bash apply-host-config.sh
+docker exec aeon_panel cat /scripts/apply-host-config.sh | sudo bash
 ```
 
-Esto aplica:
+Esto aplica en el host:
 - Reglas UFW que permiten el acceso externo a los servidores de juego
-- Dos timers que mantienen los iconos y archivos sincronizados automáticamente
+- Un timer que genera automáticamente los iconos de mods al instalar modpacks
 
-> ⚠️ Revisa que la **subred de Wings** en el script coincida con la tuya. Por
-> defecto es `172.27.0.0/16`. Si tu red Docker de Wings es distinta, edita la
-> variable `WINGS_SUBNET` en el script antes de ejecutarlo.
+> ⚠️ **Subred de Wings**: por defecto usa `172.18.0.0/16`. Verifica la tuya con
+> `docker network inspect aeon_network | grep Subnet`. Si difiere, ejecuta:
+> ```bash
+> docker exec aeon_panel cat /scripts/apply-host-config.sh | sudo WINGS_SUBNET=TU_SUBRED/16 bash
+> ```
+> El script asume que lo ejecutas desde la carpeta del compose (donde está
+> `./data`). Si no, pásale `DATA_DIR=/ruta/a/data`.
 
 ### 3.3 — Reenvío de puertos en el router (solo para acceso desde internet)
 
