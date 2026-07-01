@@ -1,0 +1,106 @@
+# ============================================================================
+# Aeon Pterodactyl - docker-compose para el USUARIO FINAL
+# ============================================================================
+# Usa la imagen pre-construida ghcr.io/leojanidem/aeon-pterodactyl con TODO el
+# codigo y las mejoras horneadas. NO monta codigo: solo datos (base de datos,
+# logs, iconos generados en runtime, config de Wings).
+#
+# ANTES DE LEVANTAR:
+#   1. Cambia las contrasenas (MYSQL_*, DB_*) por unas tuyas.
+#   2. Ajusta APP_URL a tu IP/dominio.
+#   3. Genera tu APP_KEY (ver README, Paso 1.1).
+# ============================================================================
+name: aeon
+services:
+    database:
+        container_name: aeon_database
+        image: mariadb:10.11
+        command:
+            - --skip-ssl
+        restart: unless-stopped
+        environment:
+            MYSQL_DATABASE: panel
+            MYSQL_USER: pterodactyl
+            MYSQL_PASSWORD: CAMBIA_ESTA_CONTRASENA
+            MYSQL_ROOT_PASSWORD: CAMBIA_ESTA_CONTRASENA_ROOT
+            TZ: America/New_York
+        volumes:
+            - ./data/database:/var/lib/mysql
+        networks:
+            - aeon_network
+
+    redis:
+        container_name: aeon_redis
+        image: redis:latest
+        restart: unless-stopped
+        networks:
+            - aeon_network
+
+    panel:
+        container_name: aeon_panel
+        image: ghcr.io/leojanidem/aeon-pterodactyl:latest
+        restart: unless-stopped
+        depends_on:
+            - database
+            - redis
+        environment:
+            APP_ENV: production
+            APP_DEBUG: "false"
+            # >>> GENERA TU PROPIA CLAVE (README Paso 1.1) <<<
+            APP_KEY: GENERA_TU_APP_KEY
+            APP_TIMEZONE: America/New_York
+            # >>> AJUSTA A TU IP O DOMINIO <<<
+            APP_URL: http://CAMBIA_POR_TU_IP:4080
+            DB_CONNECTION: mysql
+            DB_HOST: database
+            DB_PORT: "3306"
+            DB_DATABASE: panel
+            DB_USERNAME: pterodactyl
+            DB_PASSWORD: CAMBIA_ESTA_CONTRASENA
+            DB_SSLMODE: disabled
+            CACHE_DRIVER: redis
+            QUEUE_DRIVER: redis
+            SESSION_DRIVER: redis
+            REDIS_HOST: redis
+        ports:
+            - "4080:80"
+        volumes:
+            # Datos persistentes (NO codigo - el codigo va en la imagen)
+            - ./data/panel-var:/app/var
+            - ./data/panel-logs:/app/storage/logs
+            # Iconos generados en runtime (mods por servidor) + iconos vanilla
+            - ./data/addon-pack:/app/public/addon-pack
+            # Scripts y respaldos para la automatizacion del host
+            - ./data/vendor-extras:/app/vendor-extras
+        networks:
+            - aeon_network
+
+    wings:
+        container_name: aeon_wings
+        image: ghcr.io/pterodactyl/wings:latest
+        restart: unless-stopped
+        depends_on:
+            - panel
+        environment:
+            TZ: America/New_York
+            WINGS_PROC_PATH: /host/proc
+        privileged: true
+        ports:
+            # Puerto del daemon de Wings
+            - "8080:8080"
+            # >>> AJUSTA el rango de puertos de tus servidores de juego <<<
+            # Debe coincidir con tus allocations y el firewall.
+            - "30000-30050:30000-30050"
+            - "30000-30050:30000-30050/udp"
+        volumes:
+            - /var/run/docker.sock:/var/run/docker.sock
+            - ./data/wings:/etc/pterodactyl
+            - ./data/wings-volumes:/var/lib/pterodactyl/volumes
+            - ./data/wings-tmp:/tmp/pterodactyl
+        networks:
+            - aeon_network
+
+networks:
+    aeon_network:
+        name: aeon_network
+        driver: bridge
