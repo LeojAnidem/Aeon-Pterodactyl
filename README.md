@@ -96,24 +96,17 @@ Este rango debe coincidir en TRES lugares:
 
 ### 3.2 — Aplicar las reglas del firewall + automatización
 
-El script viene DENTRO de la imagen: no descargas nada. Desde la carpeta del
-compose, ejecuta:
-
 ```bash
-docker exec aeon_panel cat /scripts/apply-host-config.sh | sudo bash
+sudo bash apply-host-config.sh
 ```
 
-Esto aplica en el host:
+Esto aplica:
 - Reglas UFW que permiten el acceso externo a los servidores de juego
-- Un timer que genera automáticamente los iconos de mods al instalar modpacks
+- Dos timers que mantienen los iconos y archivos sincronizados automáticamente
 
-> ⚠️ **Subred de Wings**: por defecto usa `172.18.0.0/16`. Verifica la tuya con
-> `docker network inspect aeon_network | grep Subnet`. Si difiere, ejecuta:
-> ```bash
-> docker exec aeon_panel cat /scripts/apply-host-config.sh | sudo WINGS_SUBNET=TU_SUBRED/16 bash
-> ```
-> El script asume que lo ejecutas desde la carpeta del compose (donde está
-> `./data`). Si no, pásale `DATA_DIR=/ruta/a/data`.
+> El script **auto-detecta** tu subred Docker y abre los puertos del panel, del
+> daemon de Wings y del rango de juego. Ejecútalo DESPUÉS de crear el nodo. Si
+> algo no conecta, vuelve a correrlo.
 
 ### 3.3 — Reenvío de puertos en el router (solo para acceso desde internet)
 
@@ -125,41 +118,60 @@ IP local de tu máquina. Los juegos NO pasan por túneles web; necesitan esto.
 
 ## Paso 4 — Configurar Wings (el demonio que corre los servidores)
 
-Wings es el componente que ejecuta los servidores de juego. El panel y Wings se
-vinculan con un **token único** que genera tu panel.
+Wings ejecuta los servidores de juego. El panel y Wings se vinculan con un
+**token** que genera tu panel. Sigue el orden con cuidado: los detalles importan.
 
-### 4.1 — Crear un Node en el panel
+### 4.1 — Crear las carpetas de Wings (una vez)
 
-1. En el panel, ve a **Admin** (icono de configuración) → **Nodes** → **Create New**
-2. Rellena:
-   - **Name:** un nombre (ej. "Nodo Principal")
-   - **FQDN / IP:** la IP o dominio de tu máquina
-   - **Daemon Port:** normalmente `8080` (o el que uses)
-   - El resto, valores por defecto está bien para empezar
+Wings necesita estas tres rutas en el host (el compose las monta con ruta
+idéntica; es un requisito de Docker):
+
+```bash
+sudo mkdir -p /var/lib/pterodactyl/volumes /tmp/pterodactyl /run/wings
+```
+
+### 4.2 — Crear un Node en el panel
+
+1. **Admin** → **Locations** → crea una (ej. nombre `local`) si no hay ninguna.
+2. **Admin** → **Nodes** → **Create New**:
+   - **Name:** `principal`
+   - **Location:** la que creaste
+   - **FQDN:** tu **IP LAN** (la misma de `APP_URL`, ej. `192.168.1.100`)
+   - **Communicate Over SSL:** **desactivado** (usamos HTTP)
+   - **Behind Proxy:** No
+   - **Daemon Port:** `8080` (debe coincidir con el puerto de Wings del compose)
+   - **Memory / Disk:** valores generosos (ej. 8000 / 50000)
 3. Guarda.
 
-### 4.2 — Obtener la configuración de Wings
+### 4.3 — Instalar la configuración de Wings
 
-1. Abre el Node que creaste → pestaña **Configuration**
-2. Verás un bloque de configuración YAML. Cópialo.
-3. Pégalo en el archivo de configuración de Wings de tu máquina, normalmente en:
+1. Abre el Node → pestaña **Configuration**. Copia el bloque YAML.
+2. Guárdalo en `./data/wings/config.yml` (junto a tu compose):
+   ```bash
+   nano data/wings/config.yml
    ```
-   /etc/pterodactyl/config.yml
-   ```
-   (o la ruta que montaste para Wings en el compose)
+   Pega, guarda (Ctrl+O, Enter, Ctrl+X).
 
-### 4.3 — Reiniciar Wings
+3. **Verifica dos valores en ese config** (importantes):
+   - `api: port:` debe ser `8080` (coincide con el compose).
+   - `remote:` debe ser tu **APP_URL con la IP LAN** (ej. `http://192.168.1.100:4080`),
+     NO un nombre interno. Esto es clave para que la conexión y el CORS funcionen.
+
+### 4.4 — Reiniciar Wings
 
 ```bash
 docker compose restart wings
+docker compose logs wings --tail 8
 ```
 
-Verifica en el panel que el Node aparezca **en línea** (un indicador verde).
+Busca en los logs `sftp server listening` y `processing servers returned by the
+API`. Si aparecen, Wings conectó. En el panel, el Node debe ponerse **verde**.
 
-> 💡 TIP: Si el Node sale "offline", revisa que el puerto del daemon (8080) esté
-> abierto en el firewall y que la IP/FQDN del Node sea correcta.
-
----
+> ⚠️ **Si el corazón sale rojo o el "About" del nodo no carga**, casi siempre es
+> el firewall bloqueando la comunicación entre contenedores. El comando del Paso
+> 3.2 (`apply-host-config.sh`) abre los puertos necesarios (panel y daemon).
+> Asegúrate de haberlo ejecutado. Si lo ejecutaste antes de crear el nodo,
+> vuelve a correrlo.
 
 ## Paso 5 — Crear las allocations (puertos para servidores)
 
