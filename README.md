@@ -1,8 +1,10 @@
 # Aeon Pterodactyl — Guía de instalación
 
 Bienvenido. Esta es una versión personalizada del panel Pterodactyl con mejoras
-para servidores de Minecraft: instalador de modpacks con un clic, pestaña de
-jugadores (vida, hambre, inventario con iconos), subdominios automáticos y más.
+para servidores de Minecraft **Java y Bedrock**: instalador de modpacks con un
+clic, gestión completa de addons y mundos Bedrock, pestaña de jugadores,
+subdominios automáticos y más. Consulta el [CHANGELOG](CHANGELOG.md) para ver
+todas las novedades por versión.
 
 Todo el código del panel viene **horneado en la imagen Docker**, así que la
 instalación es muy sencilla: levantas el compose, creas tu usuario, configuras
@@ -203,6 +205,10 @@ Worlds, Subdomains**, etc. Para instalar un modpack con un clic, ve a la pestañ
 ---
 
 ## Características incluidas
+
+> 📋 Consulta el historial completo de versiones y novedades en el [**CHANGELOG**](CHANGELOG.md).
+
+Además de las funciones de Minecraft Java, Aeon incluye un conjunto completo de herramientas para **Minecraft Bedrock**: gestión de addons (con CurseForge), mundos (con edición NBT), jugadores en vivo y configuración del servidor. Todo el detalle está en el [CHANGELOG](CHANGELOG.md).
 
 - **Modpacks con un clic** (pestaña Modpacks): instala CurseForge modpacks
   automáticamente (descarga, NeoForge, mods, EULA, mundo limpio).
